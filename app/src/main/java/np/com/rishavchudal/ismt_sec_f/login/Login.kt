@@ -1,4 +1,4 @@
-package np.com.rishavchudal.ismt_sec_f
+package np.com.rishavchudal.ismt_sec_f.login
 
 import android.os.Parcel
 import android.os.Parcelable

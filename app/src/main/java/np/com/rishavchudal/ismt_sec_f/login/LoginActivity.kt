@@ -1,5 +1,6 @@
-package np.com.rishavchudal.ismt_sec_f
+package np.com.rishavchudal.ismt_sec_f.login
 
+import android.content.Context
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -7,13 +8,19 @@ import android.util.Log
 import android.util.Patterns
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.Toast
+import np.com.rishavchudal.ismt_sec_f.AppConstants
+import np.com.rishavchudal.ismt_sec_f.DashboardActivity
+import np.com.rishavchudal.ismt_sec_f.HomeActivity
+import np.com.rishavchudal.ismt_sec_f.R
 
 class LoginActivity : AppCompatActivity() {
     private val tag = "LoginActivity"
     private lateinit var btnLogin: Button
     private lateinit var etEmail: EditText
     private lateinit var etPassword: EditText
+    private lateinit var ibBack: ImageButton
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,6 +31,13 @@ class LoginActivity : AppCompatActivity() {
         btnLogin = findViewById(R.id.btn_login)
         etEmail = findViewById(R.id.et_email)
         etPassword = findViewById(R.id.et_password)
+        ibBack = findViewById(R.id.img_btn_back)
+
+        ibBack.setOnClickListener {
+            val intent = Intent(this, HomeActivity::class.java)
+            startActivity(intent)
+            finish()
+        }
 
         btnLogin.setOnClickListener {
             Log.i(tag, "Login Button Clicked...")
@@ -51,6 +65,18 @@ class LoginActivity : AppCompatActivity() {
                 //TODO local or remote authentication
 
                 val loginData = Login(enteredEmail, enteredPassword)
+
+                //Writing to SharedPreferences
+                val sharedPreferences = this.getSharedPreferences(
+                    AppConstants.FILE_SHARED_PREF_LOGIN,
+                    Context.MODE_PRIVATE
+                )
+                val sharedPrefEditor = sharedPreferences.edit()
+                sharedPrefEditor.putBoolean(
+                    AppConstants.KEY_IS_LOGGED_IN,
+                    true
+                )
+                sharedPrefEditor.apply()
 
                 val intent = Intent(
                     this,
