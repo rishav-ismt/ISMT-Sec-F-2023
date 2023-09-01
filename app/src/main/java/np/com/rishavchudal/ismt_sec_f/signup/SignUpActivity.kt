@@ -27,7 +27,7 @@ class SignUpActivity : AppCompatActivity() {
 
         signUpBinding.btnSignUp.setOnClickListener {
             /**
-             * TODO Validation
+             * //TODO Validation
              * Check if fields are empty
              * Check if structure of email is correct
              * Check if full name is input

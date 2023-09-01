@@ -11,9 +11,12 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
 import np.com.rishavchudal.ismt_sec_f.AppConstants
-import np.com.rishavchudal.ismt_sec_f.DashboardActivity
+import np.com.rishavchudal.ismt_sec_f.dashboard.DashboardActivity
 import np.com.rishavchudal.ismt_sec_f.HomeActivity
 import np.com.rishavchudal.ismt_sec_f.R
+import np.com.rishavchudal.ismt_sec_f.db.TestDatabase
+import np.com.rishavchudal.ismt_sec_f.db.User
+import java.lang.Exception
 
 class LoginActivity : AppCompatActivity() {
     private val tag = "LoginActivity"
@@ -62,44 +65,33 @@ class LoginActivity : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
             } else {
-                //TODO local or remote authentication
+                //TODO remote authentication
+                val testDatabase = TestDatabase.getInstance(applicationContext)
+                val userDao = testDatabase.getUserDao()
 
-                val loginData = Login(enteredEmail, enteredPassword)
-
-                //Writing to SharedPreferences
-                val sharedPreferences = this.getSharedPreferences(
-                    AppConstants.FILE_SHARED_PREF_LOGIN,
-                    Context.MODE_PRIVATE
-                )
-                val sharedPrefEditor = sharedPreferences.edit()
-                sharedPrefEditor.putBoolean(
-                    AppConstants.KEY_IS_LOGGED_IN,
-                    true
-                )
-                sharedPrefEditor.apply()
-
-                val intent = Intent(
-                    this,
-                    DashboardActivity::class.java
-                )
-                intent.putExtra(
-                    AppConstants.KEY_EMAIL,
-                    enteredEmail
-                )
-                intent.putExtra(
-                    AppConstants.KEY_PASSWORD,
-                    enteredPassword
-                )
-
-                intent.putExtra(
-                    AppConstants.KEY_LOGIN_DATA,
-                    loginData
-                )
+                Thread {
+                    try {
+                        val userInDb = userDao.checkValidUser(enteredEmail, enteredPassword)
+                        if (userInDb == null) {
+                            runOnUiThread {
+                                showToast("Email or Password is incorrect...")
+                            }
+                        } else {
+                            runOnUiThread {
+                                showToast("LoggedIn Successfully")
+                                onSuccessfulLogin(userInDb)
+                            }
+                        }
+                    } catch (exception: Exception) {
+                        exception.printStackTrace()
+                        runOnUiThread {
+                            showToast("Couldn't Login. Please try again..")
+                        }
+                    }
+                }.start()
 
 
-                startActivity(intent)
 
-                finish()
             }
         }
 
@@ -129,5 +121,39 @@ class LoginActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         Log.i(tag, "onDestroy...")
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(
+            this,
+            message,
+            Toast.LENGTH_LONG
+        ).show()
+    }
+
+    private fun onSuccessfulLogin(user: User) {
+        //Writing to SharedPreferences
+        val sharedPreferences = this.getSharedPreferences(
+            AppConstants.FILE_SHARED_PREF_LOGIN,
+            Context.MODE_PRIVATE
+        )
+        val sharedPrefEditor = sharedPreferences.edit()
+        sharedPrefEditor.putBoolean(
+            AppConstants.KEY_IS_LOGGED_IN,
+            true
+        )
+        sharedPrefEditor.apply()
+
+        val intent = Intent(
+            this,
+            DashboardActivity::class.java
+        )
+
+        intent.putExtra(
+            AppConstants.KEY_LOGIN_DATA,
+            user
+        )
+        startActivity(intent)
+        finish()
     }
 }
