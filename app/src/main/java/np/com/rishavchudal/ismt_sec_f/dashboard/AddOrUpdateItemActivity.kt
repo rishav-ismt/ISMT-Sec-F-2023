@@ -3,6 +3,7 @@ package np.com.rishavchudal.ismt_sec_f.dashboard
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
+import np.com.rishavchudal.ismt_sec_f.AppConstants
 import np.com.rishavchudal.ismt_sec_f.databinding.ActivityAddOrUpdateItemBinding
 import np.com.rishavchudal.ismt_sec_f.db.Product
 import np.com.rishavchudal.ismt_sec_f.db.TestDatabase
@@ -10,6 +11,8 @@ import java.lang.Exception
 
 class AddOrUpdateItemActivity : AppCompatActivity() {
     private lateinit var addOrUpdateItemBinding: ActivityAddOrUpdateItemBinding
+    private var receivedProduct: Product? = null
+    private var isForUpdate = false
 
     companion object {
         const val RESULT_CODE_COMPLETE = 1001
@@ -20,6 +23,14 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         addOrUpdateItemBinding = ActivityAddOrUpdateItemBinding.inflate(layoutInflater)
         setContentView(addOrUpdateItemBinding.root)
+
+        receivedProduct = intent.getParcelableExtra(AppConstants.KEY_PRODUCT)
+        receivedProduct?.apply {
+            isForUpdate = true
+            addOrUpdateItemBinding.tieTitle.setText(this.title)
+            addOrUpdateItemBinding.tiePrice.setText(this.price)
+            addOrUpdateItemBinding.tieDescription.setText(this.description)
+        }
 
         addOrUpdateItemBinding.ibBack.setOnClickListener {
             setResultWithFinish(RESULT_CODE_CANCEL)
@@ -48,6 +59,10 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
 
             Thread {
                 try {
+                    if (isForUpdate) {
+                        product.id = receivedProduct!!.id
+                        productDao.updateProduct(product)
+                    }
                     productDao.insertNewProduct(product)
                     runOnUiThread {
                         clearFieldsData()

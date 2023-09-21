@@ -25,7 +25,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/item_guideline1"
         app:layout_constraintTop_toTopOf="parent"
-        android:src="@drawable/ic_home"/>
+        android:src="@drawable/ic_home"
+        android:padding="8dp"/>
 
     <TextView
         android:id="@+id/tv_item_title"
