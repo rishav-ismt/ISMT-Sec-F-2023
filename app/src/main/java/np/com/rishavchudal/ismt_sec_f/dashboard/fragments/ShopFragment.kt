@@ -34,7 +34,11 @@ class ShopFragment : Fragment(), ProductRecyclerAdapter.ProductAdapterListener {
     private val startDetailViewActivity = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        //TODO
+        if (it.resultCode == DetailViewActivity.RESULT_CODE_REFRESH) {
+            setUpRecyclerView()
+        } else {
+            //Do Nothing
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,7 +99,11 @@ class ShopFragment : Fragment(), ProductRecyclerAdapter.ProductAdapterListener {
     }
 
     private fun populateRecyclerView(products: List<Product>) {
-        productRecyclerAdapter = ProductRecyclerAdapter(products, this)
+        productRecyclerAdapter = ProductRecyclerAdapter(
+            products,
+            this,
+            requireActivity().applicationContext
+        )
         shopBinding.rvShop.adapter = productRecyclerAdapter
         shopBinding.rvShop.layoutManager = LinearLayoutManager(requireActivity())
     }
