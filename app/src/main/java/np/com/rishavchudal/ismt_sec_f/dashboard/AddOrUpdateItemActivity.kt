@@ -54,6 +54,11 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
         }
     }
 
+    private val startMapActivityForResult = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()) {
+        //TODO Handle data
+    }
+
     companion object {
         const val RESULT_CODE_COMPLETE = 1001
         const val RESULT_CODE_CANCEL = 1002
@@ -82,6 +87,10 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
             handleImageAddButtonClicked()
         }
 
+        addOrUpdateItemBinding.mbLocation.setOnClickListener {
+            startMapActivity()
+        }
+
         addOrUpdateItemBinding.mbSubmit.setOnClickListener {
             val title = addOrUpdateItemBinding.tieTitle.text.toString().trim()
             val price = addOrUpdateItemBinding.tiePrice.text.toString().trim()
@@ -108,7 +117,6 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
                     if (isForUpdate) {
                         product.id = receivedProduct!!.id
                         productDao.updateProduct(product)
-
                     } else {
                         productDao.insertNewProduct(product)
                     }
@@ -235,6 +243,11 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
                 e.printStackTrace()
             }
         })
+    }
+
+    private fun startMapActivity() {
+        val intent = Intent(this, MapsActivity::class.java)
+        startMapActivityForResult.launch(intent)
     }
     override fun onBackPressed() {
         setResultWithFinish(RESULT_CODE_CANCEL, null)
