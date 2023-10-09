@@ -14,13 +14,15 @@ data class Product(
     val price: String,
     val description: String,
     val image: String?,
-    val location: String?
+    val location: String?,
+    var isPurchased: Boolean? = false
 ): Parcelable {
     constructor(
         title: String,
         price: String,
         description: String,
         image: String?,
-        location: String?
-    ): this(0, title, price, description, image, location)
+        location: String?,
+        isPurchased: Boolean? = false
+    ): this(0, title, price, description, image, location, isPurchased)
 }

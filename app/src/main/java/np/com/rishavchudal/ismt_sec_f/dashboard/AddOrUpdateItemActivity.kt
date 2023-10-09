@@ -4,17 +4,21 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.location.Address
+import android.location.Geocoder
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import np.com.rishavchudal.ismt_sec_f.AppConstants
 import np.com.rishavchudal.ismt_sec_f.BitmapScalar
+import np.com.rishavchudal.ismt_sec_f.GeoCoding
 import np.com.rishavchudal.ismt_sec_f.R
 import np.com.rishavchudal.ismt_sec_f.databinding.ActivityAddOrUpdateItemBinding
 import np.com.rishavchudal.ismt_sec_f.db.Product
@@ -27,37 +31,11 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
     private var receivedProduct: Product? = null
     private var isForUpdate = false
     private var imageUriPath = ""
+    private var productLocation = ""
 
-    private val startCustomCameraActivityForResult = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == CustomCameraActivity.CAMERA_ACTIVITY_SUCCESS_RESULT_CODE) {
-            imageUriPath = it.data?.getStringExtra(CustomCameraActivity.CAMERA_ACTIVITY_OUTPUT_FILE_PATH)!!
-            loadThumbnailImage(imageUriPath)
-        } else {
-            imageUriPath = "";
-            addOrUpdateItemBinding.ivAddImage.setImageResource(android.R.drawable.ic_menu_gallery)
-        }
-    }
-
-    private val startGalleryActivityForResult = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()) {
-        if (it != null) {
-            imageUriPath = it.toString()
-            contentResolver.takePersistableUriPermission(
-                Uri.parse(imageUriPath),
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            loadThumbnailImage(imageUriPath)
-        } else {
-            imageUriPath = "";
-            addOrUpdateItemBinding.ivAddImage.setImageResource(android.R.drawable.ic_menu_gallery)
-        }
-    }
-
-    private val startMapActivityForResult = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()) {
-        //TODO Handle data
-    }
+    private lateinit var startCustomCameraActivityForResult: ActivityResultLauncher<Intent>
+    private lateinit var startGalleryActivityForResult: ActivityResultLauncher<Array<String>>
+    private lateinit var startMapActivityForResult: ActivityResultLauncher<Intent>
 
     companion object {
         const val RESULT_CODE_COMPLETE = 1001
@@ -69,6 +47,9 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         addOrUpdateItemBinding = ActivityAddOrUpdateItemBinding.inflate(layoutInflater)
         setContentView(addOrUpdateItemBinding.root)
+        bindCustomCameraActivityForResult()
+        bindGalleryActivityForResult()
+        bindMapsActivityForResult()
 
         receivedProduct = intent.getParcelableExtra(AppConstants.KEY_PRODUCT)
         receivedProduct?.apply {
@@ -76,6 +57,7 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
             addOrUpdateItemBinding.tieTitle.setText(this.title)
             addOrUpdateItemBinding.tiePrice.setText(this.price)
             addOrUpdateItemBinding.tieDescription.setText(this.description)
+            addOrUpdateItemBinding.cbPurchased.isChecked = (this.isPurchased == true)
             loadThumbnailImage(this.image!!)
         }
 
@@ -95,6 +77,7 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
             val title = addOrUpdateItemBinding.tieTitle.text.toString().trim()
             val price = addOrUpdateItemBinding.tiePrice.text.toString().trim()
             val description = addOrUpdateItemBinding.tieDescription.text.toString().trim()
+            val isPurchased = addOrUpdateItemBinding.cbPurchased.isChecked
             /**
              * TODO Validation
              * Check fields are empty
@@ -106,7 +89,8 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
                 price,
                 description,
                 imageUriPath,
-                ""
+                productLocation,
+                isPurchased
             )
 
             val testDatabase = TestDatabase.getInstance(applicationContext)
@@ -248,6 +232,65 @@ class AddOrUpdateItemActivity : AppCompatActivity() {
     private fun startMapActivity() {
         val intent = Intent(this, MapsActivity::class.java)
         startMapActivityForResult.launch(intent)
+    }
+
+    private fun onLocationDataFetched() {
+        if (productLocation.isBlank()) {
+            return
+        }
+
+        try {
+            val lat = productLocation.split(",")[0]
+            val lng = productLocation.split(",")[1]
+            val geoCodedAddress = GeoCoding.reverseTheGeoCodeToAddress(this, lat, lng)
+            addOrUpdateItemBinding.mbLocation.text = geoCodedAddress
+        } catch (exception: Exception) {
+            exception.printStackTrace()
+        }
+
+        productLocation.isNotBlank().apply {
+
+        }
+    }
+
+    private fun bindCustomCameraActivityForResult() {
+        startCustomCameraActivityForResult = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == CustomCameraActivity.CAMERA_ACTIVITY_SUCCESS_RESULT_CODE) {
+                imageUriPath = it.data?.getStringExtra(CustomCameraActivity.CAMERA_ACTIVITY_OUTPUT_FILE_PATH)!!
+                loadThumbnailImage(imageUriPath)
+            } else {
+                imageUriPath = "";
+                addOrUpdateItemBinding.ivAddImage.setImageResource(android.R.drawable.ic_menu_gallery)
+            }
+        }
+    }
+
+    private fun bindGalleryActivityForResult() {
+        startGalleryActivityForResult = registerForActivityResult(
+            ActivityResultContracts.OpenDocument()) {
+            if (it != null) {
+                imageUriPath = it.toString()
+                contentResolver.takePersistableUriPermission(
+                    Uri.parse(imageUriPath),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                loadThumbnailImage(imageUriPath)
+            } else {
+                imageUriPath = "";
+                addOrUpdateItemBinding.ivAddImage.setImageResource(android.R.drawable.ic_menu_gallery)
+            }
+        }
+    }
+
+    private fun bindMapsActivityForResult() {
+        startMapActivityForResult = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == MapsActivity.MAPS_ACTIVITY_SUCCESS_RESULT_CODE) {
+                productLocation = it.data?.getStringExtra(AppConstants.KEY_PRODUCT_LOCATION).toString()
+                onLocationDataFetched()
+            }
+        }
     }
     override fun onBackPressed() {
         setResultWithFinish(RESULT_CODE_CANCEL, null)

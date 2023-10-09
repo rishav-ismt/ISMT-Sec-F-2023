@@ -9,5 +9,7 @@ class AppConstants {
         const val KEY_IS_LOGGED_IN = "isLoggedIn"
         const val KEY_PRODUCT = "product"
         const val KEY_PRODUCT_POSITION = "position"
+        const val KEY_PRODUCT_LOCATION = "location"
+        const val KEY_LOGGED_IN_EMAIL = "loggedInEmail"
     }
 }

@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.telephony.SmsManager
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -21,10 +22,12 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import np.com.rishavchudal.ismt_sec_f.AppConstants
 import np.com.rishavchudal.ismt_sec_f.BitmapScalar
+import np.com.rishavchudal.ismt_sec_f.GeoCoding
 import np.com.rishavchudal.ismt_sec_f.R
 import np.com.rishavchudal.ismt_sec_f.UiUtility
 import np.com.rishavchudal.ismt_sec_f.databinding.ActivityDetailViewBinding
 import np.com.rishavchudal.ismt_sec_f.db.Product
+import np.com.rishavchudal.ismt_sec_f.db.ProductDao
 import np.com.rishavchudal.ismt_sec_f.db.TestDatabase
 import java.io.IOException
 
@@ -40,27 +43,14 @@ class DetailViewActivity : AppCompatActivity() {
         const val SMS_PERMISSIONS_REQUEST_CODE = 111
     }
 
-    private val startAddItemActivity = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        if (it.resultCode == AddOrUpdateItemActivity.RESULT_CODE_COMPLETE) {
-            val product = it.data?.getParcelableExtra<Product>(AppConstants.KEY_PRODUCT)
-            populateDataToTheViews(product)
-        } else {
-            // TODO do nothing
-        }
-    }
-
-    private val startContactActivityForResult = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()) {
-        if (it != null) {
-            fetchContactNumberFromData(it.data!!)
-        }
-    }
+    private lateinit var startAddItemActivity: ActivityResultLauncher<Intent>
+    private lateinit var startContactActivityForResult: ActivityResultLauncher<Intent>
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         detailViewBinding = ActivityDetailViewBinding.inflate(layoutInflater)
         setContentView(detailViewBinding.root)
+        bindAddOrUpdateActivityForResult()
+        bindContactPickerActivityForResult()
 
         receivedProduct = intent.getParcelableExtra(AppConstants.KEY_PRODUCT)
         receivedProduct?.apply {
@@ -86,6 +76,11 @@ class DetailViewActivity : AppCompatActivity() {
         detailViewBinding.productTitle.text = product?.title
         detailViewBinding.productPrice.text = product?.price
         detailViewBinding.productDescription.text = product?.description
+        detailViewBinding.cbPurchased.isChecked = (product?.isPurchased == true)
+
+        /**
+         * Scaling the image into the view based on its width and heigh
+         */
         detailViewBinding.productImage.post {
             var bitmap: Bitmap?
             try {
@@ -103,6 +98,19 @@ class DetailViewActivity : AppCompatActivity() {
                 e.printStackTrace()
             }
         }
+
+        /**
+         * Splitting the latlng string into lat and lng
+         * Based on the latlng, reverse geocoding to get the actual location
+         */
+        try {
+            val lat = product?.location!!.split(",")[0]
+            val lng = product.location.split(",")[1]
+            val geoCodedAddress = GeoCoding.reverseTheGeoCodeToAddress(this, lat, lng)
+            detailViewBinding.productLocation.text = geoCodedAddress
+        } catch (exception: java.lang.Exception) {
+            exception.printStackTrace()
+        }
     }
 
     private fun setUpButtons() {
@@ -110,6 +118,7 @@ class DetailViewActivity : AppCompatActivity() {
         setUpEditButton()
         setUpDeleteButton()
         setUpShareButton()
+        setUpMarkAsPurchasedCheckbox()
     }
 
     private fun setUpBackButton() {
@@ -153,17 +162,69 @@ class DetailViewActivity : AppCompatActivity() {
     }
 
     private fun setUpShareButton() {
-        //TODO
         detailViewBinding.ibShare.setOnClickListener {
             if (areSmsPermissionsGranted(this)) {
                 showSmsBottomSheetDialog()
             } else {
                 requestPermissions(
-                    smsPermissionsList()!!.toTypedArray(),
+                    smsPermissionsList().toTypedArray(),
                     SMS_PERMISSIONS_REQUEST_CODE
                 )
             }
         }
+    }
+
+    private fun setUpMarkAsPurchasedCheckbox() {
+        detailViewBinding.cbPurchased.setOnCheckedChangeListener { _, isChecked ->
+            handleCheckChangedForMarkAsPurchased(
+                isChecked
+            )
+        }
+    }
+
+    private fun handleCheckChangedForMarkAsPurchased(isChecked: Boolean) {
+        if (isChecked) {
+            updateProductWithMarkAsPurchasedTrue()
+        } else {
+            updateProductWithMarkAsPurchasedFalse()
+        }
+    }
+
+    private fun updateProductWithMarkAsPurchasedTrue() {
+        receivedProduct?.isPurchased = true
+        updateProductDataInDb(receivedProduct)
+    }
+
+    private fun updateProductWithMarkAsPurchasedFalse() {
+        receivedProduct?.isPurchased = false
+        updateProductDataInDb(receivedProduct)
+    }
+
+    private fun updateProductDataInDb(product: Product?) {
+        val testDatabase = TestDatabase.getInstance(this.applicationContext)
+        val productDao = testDatabase.getProductDao()
+
+        Thread {
+            try {
+                product?.apply {
+                    productDao.updateProduct(this)
+                    runOnUiThread {
+                        UiUtility.showToast(
+                            this@DetailViewActivity,
+                            "Product updated successfully"
+                        )
+                    }
+                }
+            } catch (exception: Exception) {
+                exception.printStackTrace()
+                runOnUiThread {
+                    UiUtility.showToast(
+                        this@DetailViewActivity,
+                        "Cannot update product."
+                    )
+                }
+            }
+        }.start()
     }
 
     private fun deleteProduct() {
@@ -209,7 +270,11 @@ class DetailViewActivity : AppCompatActivity() {
 
         tilContact?.setEndIconOnClickListener {
             //TODO open Contact Activity
-            val pickContact = Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)
+            val pickContact = Intent(Intent.ACTION_PICK)
+            pickContact.setDataAndType(
+                ContactsContract.Contacts.CONTENT_URI,
+                ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+            )
             startContactActivityForResult.launch(pickContact)
         }
 
@@ -220,6 +285,7 @@ class DetailViewActivity : AppCompatActivity() {
                 tilContact?.error = "Enter Contact"
             } else {
                 sendSms(contact)
+                smsBottomSheetDialog.dismiss()
             }
         }
         smsBottomSheetDialog.setCancelable(true)
@@ -249,22 +315,34 @@ class DetailViewActivity : AppCompatActivity() {
     }
 
     private fun sendSms(contact: String) {
-        val smsManager: SmsManager = SmsManager.getDefault()
-        val message = """
+        Thread {
+            try {
+                val smsManager: SmsManager = SmsManager.getDefault()
+                val message = """
             Item: ${receivedProduct!!.title}
             Price: ${receivedProduct!!.price}
-            Description: ${receivedProduct!!.description.substring(50)}
+            Description: ${receivedProduct!!.description}
             """.trimIndent()
-        smsManager.sendTextMessage(
-            contact,
-            null,
-            message,
-            null,
-            null
-        )
+                smsManager.sendTextMessage(
+                    contact,
+                    null,
+                    message,
+                    null,
+                    null
+                )
+                runOnUiThread {
+                    UiUtility.showToast(this, "SMS Sent. Please check your message app...")
+                }
+            } catch (exception: Exception) {
+                runOnUiThread {
+                    UiUtility.showToast(this, "Couldn't Send SMS...")
+                }
+            }
+        }.start()
+
 
         //If the above SMS manager didn't work
-        openSmsAppToSendMessage(contact, message)
+//        openSmsAppToSendMessage(contact, message)
     }
 
     private fun openSmsAppToSendMessage(contact: String, message: String) {
@@ -283,7 +361,13 @@ class DetailViewActivity : AppCompatActivity() {
             ContactsContract.CommonDataKinds.Phone.NUMBER
         )
         this.contentResolver
-            .query(contactUri!!, null, null, null, null).use { cursor ->
+            .query(
+                contactUri!!,
+                null,
+                null,
+                null,
+                null
+            ).use { cursor ->
                 // Double-check that you
                 // actually got results
                 if (cursor!!.count == 0) return
@@ -294,8 +378,36 @@ class DetailViewActivity : AppCompatActivity() {
                 cursor.moveToFirst()
                 val contactNumberIndex =
                     cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                val contactNumber = cursor.getString(contactNumberIndex)
+                val contactNumber = cursor.getString(contactNumberIndex).apply {
+                //Replacing the brackets and hyphens with empty string as we don't need here
+                    this.replace(
+                        Regex("[()\\-\\s]+"),
+                        ""
+                    )
+                }
                 tieContact?.setText(contactNumber)
             }
+    }
+
+    private fun bindAddOrUpdateActivityForResult() {
+        startAddItemActivity = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            if (it.resultCode == AddOrUpdateItemActivity.RESULT_CODE_COMPLETE) {
+                val product = it.data?.getParcelableExtra<Product>(AppConstants.KEY_PRODUCT)
+                populateDataToTheViews(product)
+            } else {
+                // TODO do nothing
+            }
+        }
+    }
+
+    private fun bindContactPickerActivityForResult() {
+        startContactActivityForResult = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()) {
+            if (it != null) {
+                fetchContactNumberFromData(it.data!!)
+            }
+        }
     }
 }

@@ -142,6 +142,7 @@ class LoginActivity : AppCompatActivity() {
             AppConstants.KEY_IS_LOGGED_IN,
             true
         )
+        sharedPrefEditor.putString(AppConstants.KEY_LOGGED_IN_EMAIL, user.email)
         sharedPrefEditor.apply()
 
         val intent = Intent(

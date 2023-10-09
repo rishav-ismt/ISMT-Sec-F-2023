@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import np.com.rishavchudal.ismt_sec_f.BitmapScalar
 import np.com.rishavchudal.ismt_sec_f.R
@@ -78,6 +79,12 @@ class ProductRecyclerAdapter(
         holder.itemDescription.text = products[position].description
         holder.itemRootLayout.setOnClickListener {
             listener.onItemClicked(products[position], position)
+        }
+        if (products[position].isPurchased == true) {
+            val drawable = ContextCompat.getDrawable(applicationContext, R.drawable.ic_check_circle)
+            holder.itemTitle.setCompoundDrawablesWithIntrinsicBounds(null, null, drawable, null)
+        } else {
+            holder.itemTitle.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null)
         }
     }
 

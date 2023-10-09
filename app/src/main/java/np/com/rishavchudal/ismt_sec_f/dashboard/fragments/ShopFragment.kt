@@ -6,6 +6,7 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.LinearLayoutManager
 import np.com.rishavchudal.ismt_sec_f.AppConstants
@@ -22,27 +23,30 @@ class ShopFragment : Fragment(), ProductRecyclerAdapter.ProductAdapterListener {
     private lateinit var shopBinding: FragmentShopBinding
     private lateinit var productRecyclerAdapter: ProductRecyclerAdapter
 
-    private val startAddOrUpdateActivityForResult = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == AddOrUpdateItemActivity.RESULT_CODE_COMPLETE) {
-            setUpRecyclerView()
-        } else {
-            //TODO Do nothing
-        }
-    }
+    private lateinit var startAddOrUpdateActivityForResult: ActivityResultLauncher<Intent>
 
-    private val startDetailViewActivity = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        if (it.resultCode == DetailViewActivity.RESULT_CODE_REFRESH) {
-            setUpRecyclerView()
-        } else {
-            //Do Nothing
-        }
-    }
+    private lateinit var startDetailViewActivity: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        startAddOrUpdateActivityForResult = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == AddOrUpdateItemActivity.RESULT_CODE_COMPLETE) {
+                setUpRecyclerView()
+            } else {
+                //TODO Do nothing
+            }
+        }
+
+        startDetailViewActivity = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            if (it.resultCode == DetailViewActivity.RESULT_CODE_REFRESH) {
+                setUpRecyclerView()
+            } else {
+                //Do Nothing
+            }
+        }
     }
 
     override fun onCreateView(
