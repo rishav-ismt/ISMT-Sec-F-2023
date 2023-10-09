@@ -37,7 +37,7 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        getLoggedInUserInformation()
     }
 
     private fun getLoggedInUserInformation() {
@@ -65,6 +65,7 @@ class HomeFragment : Fragment() {
                     }
                 } else {
                     //logged user fetch successfully. Now use these data
+
                 }
             } catch (exception: Exception) {
                 exception.printStackTrace()

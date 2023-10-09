@@ -22,6 +22,6 @@ interface UserDao {
         userPassword: String
     ): User?
 
-    @Query("Select user.email, user.full_name, user.id from user where email = :emailAddress")
+    @Query("Select * from user where email = :emailAddress")
     fun getLoggedInUserInformation(emailAddress: String): User?
 }
